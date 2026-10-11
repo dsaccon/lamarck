@@ -4,8 +4,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from lamarck import net
+
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
+net.install()  # every process imports config, including spawned workers
 
 # Worker models the evolver may choose: id -> ($ per M input tokens, $ per M output tokens).
 WORKER_MODELS: dict[str, tuple[float, float]] = {"gemini-3.8-flash": (0.75, 3.75)}
