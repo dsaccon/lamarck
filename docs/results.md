@@ -12,7 +12,10 @@ Engineer: Claude Opus 5.5. 8 generations, 3 candidates each.
 | final champion `ccd980aa` (generation 5) | 1.00 | 1.00 | 1.00 | 4,261 | 5,079 |
 
 On the long split the champion gets every answer for about 283x fewer tokens ($0.046 vs $9.19 for 8 tasks).
-Generation 0's misses are the context-rot signature: distinct counts and user lists drift as the input grows.
+Each long input is about 1.03M tokens, right at Gemini 3.8 Flash's 1M window. Generation 0's first reply fits,
+but 3 of its 8 runs overflowed the window when a second turn re-sent the history (400 INVALID_ARGUMENT), and it
+answered 3 of the other 5 correctly (both needles, one top-k). Its token figure counts those re-sent turns. The
+evolved harness keeps the data in the REPL, so input size never touches its context.
 
 ## What happened
 

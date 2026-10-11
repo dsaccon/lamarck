@@ -20,8 +20,11 @@ the genome its descendants inherit), selection is Darwinian (the gate).
 
 In 8 generations the harness moved its data out of the model's context into a REPL, wrote its own
 parsing and template-picking skills, turned on a guard against imagined tool output, and trimmed itself.
-On inputs 8x longer than any it trained on it answers everything for about 283x fewer tokens. Along the
-way the gate rejected a candidate that aced training but failed held-out tasks. Full lineage:
+On inputs 8x longer than any it trained on it answers everything for about 283x fewer tokens. Generation 0
+cannot keep up there: each long input is about 1.03M tokens, right at Gemini's 1M window, so 3 of its 8 runs
+overflowed the window as soon as it needed a second turn, and it got 3 of the other 5 right. The evolved
+harness never puts the data in context. Along the way the gate rejected a candidate that aced training but
+failed held-out tasks. Full lineage:
 [docs/results.md](docs/results.md); spike: [docs/spike.md](docs/spike.md).
 
 

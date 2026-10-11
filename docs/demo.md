@@ -16,6 +16,9 @@
 4. **The lineage (45 s).** Walk the tree: gen 1 overfit rejection and why; gen 2 accepted with its diagnosis; gens 3 and 5 cutting tokens; gens 4 and 6 rejected for saving under 15%.
 5. **Generalization (15 s).** The long split numbers. "It never saw an input this long, and it still gets every answer."
 
+Run only one `evolve` per run at a time: `evolve` refuses while another run's candidates are still being
+evaluated (`--force` overrides it after a crash).
+
 ## Backup if the network fails
 
 `python -m lamarck.cli status --run main` and `python scripts/results.py main` print the whole lineage from Atlas; `docs/results.md` has the same tables.

@@ -81,7 +81,12 @@ def generation(run: str, g: int, k: int) -> None:
 
 def cmd_evolve(a: argparse.Namespace) -> None:
     ensure_root(a.run)
-    start = max(x["generation"] for x in store.lineage(a.run)) + 1
+    lineage = store.lineage(a.run)
+    busy = [x["_id"] for x in lineage if x["status"] == "candidate"]
+    if busy and not a.force:
+        raise SystemExit(f"run {a.run!r} has candidates still being evaluated ({', '.join(busy)}): another evolve "
+                         "may be running. Wait for it, or pass --force if it crashed.")
+    start = max(x["generation"] for x in lineage) + 1
     for g in range(start, start + a.gens):
         generation(a.run, g, a.candidates)
 
@@ -129,6 +134,7 @@ def main(argv: list[str] | None = None) -> None:
         if name == "evolve":
             p.add_argument("--gens", type=int, default=1)
             p.add_argument("--candidates", type=int, default=3, choices=[1, 2, 3])
+            p.add_argument("--force", action="store_true", help="evolve even if candidates look in flight")
         if name == "rollback":
             p.add_argument("--to", required=True)
     a = ap.parse_args(argv)

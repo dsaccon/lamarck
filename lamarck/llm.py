@@ -89,8 +89,13 @@ def claude_json(prompt: str, system: str, schema: dict, timeout_s: int = 900) ->
     with tempfile.TemporaryDirectory(prefix="lamarck-eng-") as d:
         system_file = Path(d, "system.md")
         system_file.write_text(system)
-        proc = subprocess.run(claude_command(schema, system_file), input=prompt, capture_output=True, text=True,
-                              cwd=d, env=claude_env(), timeout=timeout_s)
+        try:
+            proc = subprocess.run(claude_command(schema, system_file), input=prompt, capture_output=True, text=True,
+                                  cwd=d, env=claude_env(), timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            raise EngineerError(f"claude timed out after {timeout_s}s") from None
+        except FileNotFoundError:
+            raise EngineerError(f"claude CLI not found: {config.CLAUDE_BIN}") from None
     if proc.returncode != 0:
         raise EngineerError(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
     try:

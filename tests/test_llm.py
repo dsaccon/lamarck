@@ -55,3 +55,21 @@ def test_claude_env_drops_nesting_flag_and_secrets(monkeypatch):
     monkeypatch.setenv("MONGODB_URI", "y")
     env = llm.claude_env()
     assert not {"CLAUDECODE", "GEMINI_API_KEY", "MONGODB_URI"} & set(env)
+
+
+def test_claude_timeout_and_missing_binary_become_engineer_errors(monkeypatch):
+    import subprocess
+
+    def timeout(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=1)
+
+    monkeypatch.setattr(llm.subprocess, "run", timeout)
+    with pytest.raises(llm.EngineerError, match="timed out"):
+        llm.claude_json("p", "s", {"type": "object"}, timeout_s=1)
+
+    def missing(*a, **k):
+        raise FileNotFoundError("claude")
+
+    monkeypatch.setattr(llm.subprocess, "run", missing)
+    with pytest.raises(llm.EngineerError, match="not found"):
+        llm.claude_json("p", "s", {"type": "object"})
