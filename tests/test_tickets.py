@@ -38,3 +38,9 @@ def test_ticket_scoring_tolerates_loose_phrasing():
     assert tasks.score(_t("topk", "refund"), "refund or cancel") == 0.0
     assert tasks.score(_t("distinct", 17), "17 customers") == 1.0
     assert tasks.score(_t("pairs", ["c0001", "c0002"]), "c0001, c0003") == 0.5
+
+
+def test_ticket_counts_get_partial_credit_for_near_misses():
+    assert tasks.score(_t("distinct", 100), "100") == 1.0
+    assert tasks.score(_t("distinct", 100), "95") == 0.5
+    assert tasks.score(_t("distinct", 100), "85") == 0.0

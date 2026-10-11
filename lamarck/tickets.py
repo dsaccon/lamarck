@@ -145,9 +145,9 @@ def score(task: Task, answer: str) -> float:
         return float(set(TICKET_RE.findall(a)) == {task.answer.lower()})
     if task.kind == "topk":
         return float(set(INTENT_RE.findall(a)) == {task.answer})
-    if task.kind == "distinct":
+    if task.kind == "distinct":  # partial credit: reading-based counts are noisy, so near misses still teach
         nums = re.findall(r"-?\d+", a.replace(",", ""))
-        return float(bool(nums) and int(nums[0]) == task.answer)
+        return round(max(0.0, 1 - 10 * abs(int(nums[0]) - task.answer) / task.answer), 4) if nums else 0.0
     got, want = set(CUSTOMER_RE.findall(a)), set(task.answer)
     tp = len(got & want)
     if tp == 0:

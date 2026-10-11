@@ -24,11 +24,13 @@ def main() -> None:
     ap.add_argument("--lines", type=int, nargs="+", default=[800, 2000])
     ap.add_argument("--per-kind", type=int, default=2)
     ap.add_argument("--dump", help="write every run result to this JSONL file")
+    ap.add_argument("--workload", default="logs", choices=["logs", "tickets"])
     a = ap.parse_args()
     dump = open(a.dump, "w") if a.dump else None
     for n_lines in a.lines:
         for name, genome in (("gen0", GEN0), ("hand_rlm", HAND_RLM)):
-            jobs = [{"genome": genome.model_dump(), "split": "spike", "idx": i, "n_lines": n_lines}
+            jobs = [{"genome": genome.model_dump(), "split": "spike", "idx": i, "n_lines": n_lines,
+                     "workload": a.workload}
                     for i in range(4 * a.per_kind)]
             t0 = time.time()
             outs = pool.run_many("lamarck.worker:run_job", jobs, max_parallel=16, timeout_s=600)
