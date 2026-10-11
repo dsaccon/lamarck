@@ -30,7 +30,7 @@
 <body>
 <header>
   <h1>Lamarck</h1>
-  <span class="stat">run <b id="run"></b></span>
+  <span class="stat">run <b id="run"></b> <span id="runs"></span></span>
   <span class="stat">champion <b id="champ">–</b></span>
   <span class="stat">train <b id="train">–</b></span>
   <span class="stat">gate <b id="gate">–</b></span>
@@ -57,6 +57,10 @@ const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({"&": "&amp;", "<":
 const pct = (x) => (x === undefined || x === null) ? "–" : Math.round(x * 100) + "%";
 let selected = null, lastTs = 0, data = null;
 $("run").textContent = RUN;
+fetch("/api/runs").then((r) => r.json()).then((runs) => {
+  $("runs").innerHTML = runs.filter((r) => r !== RUN)
+    .map((r) => `<a href="?run=${encodeURIComponent(r)}" style="color:var(--pending);margin-left:8px">${esc(r)}</a>`).join("");
+});
 
 function opText(o) {
   if (o.op === "set") return `set ${o.path} = ${o.value_json}`;

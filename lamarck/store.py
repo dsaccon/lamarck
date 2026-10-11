@@ -83,6 +83,10 @@ def failing_runs(gid: str, split: str, limit: int) -> list[dict]:
                 .sort("score", ASCENDING).limit(limit))
 
 
+def runs() -> list[str]:
+    return sorted(db().genomes.distinct("run"))
+
+
 def lineage(run: str) -> list[dict]:
     return list(db().genomes.find({"run": run}).sort([("generation", ASCENDING), ("created_at", ASCENDING)]))
 

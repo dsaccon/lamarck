@@ -17,3 +17,8 @@ def test_unknown_genome_is_404(monkeypatch):
 
 def test_index_is_served():
     assert "Lamarck" in TestClient(server.app).get("/").text
+
+
+def test_runs_endpoint_lists_every_run(monkeypatch):
+    monkeypatch.setattr(server.store, "runs", lambda: ["main", "tickets"])
+    assert TestClient(server.app).get("/api/runs").json() == ["main", "tickets"]

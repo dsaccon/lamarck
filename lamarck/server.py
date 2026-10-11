@@ -15,6 +15,11 @@ def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/api/runs")
+def runs_view() -> list[str]:
+    return store.runs()
+
+
 @app.get("/api/run/{run}")
 def run_view(run: str) -> dict:
     return {"run": run, "champion": store.champion(run), "genomes": store.lineage(run)}
