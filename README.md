@@ -28,6 +28,20 @@ failed held-out tasks. Full lineage:
 [docs/results.md](docs/results.md); spike: [docs/spike.md](docs/spike.md).
 
 
+## A second workload, a different species
+
+The same loop, unchanged, on a synthetic support inbox (intents phrased many ways, with negated decoys):
+
+| harness | train | held-out gate | 8x longer inputs | tokens per task (train / long) |
+| --- | --- | --- | --- | --- |
+| generation 0 (plain inline) | 0.95 | 0.97 | 0.30 | 117,740 / 709,538 |
+| evolved champion (generation 3 of 5) | 1.00 | 1.00 | 0.87 | 65,714 / 266,782 |
+
+On logs it evolved toward computing: parse and count in Python, no sub-model calls. On tickets it evolved
+toward delegating reading: a `tag_records` skill has the sub-model tag each unique ticket text, then code
+counts. The two species scale differently: on 8x longer inputs the logs harness's cost barely moved, while
+the tickets harness's grew with the data until it hit its sub-call budget.
+
 ## Why
 
 - **Context rot.** Agents that append every observation to their context degrade as it grows. The fix

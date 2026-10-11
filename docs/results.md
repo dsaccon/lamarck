@@ -66,3 +66,63 @@ evolved harness keeps the data in the REPL, so input size never touches its cont
 | 8 | 738cc1bd | accuracy | rejected_no_gain | 1.00 | 4,343 | no train gain: acc 1.00 -> 1.00, tokens/task 4,261 -> 4,343 |
 | 8 | e096eee3 | cost | rejected_no_gain | 1.00 | 4,246 | no train gain: acc 1.00 -> 1.00, tokens/task 4,261 -> 4,246 |
 | 8 | 2fb96a25 | free | rejected_no_gain | 1.00 | 7,650 | no train gain: acc 1.00 -> 1.00, tokens/task 4,261 -> 7,650 |
+
+---
+
+# Results — run `tickets` (second workload), 2026-10-11
+
+Workload: a synthetic support inbox. Each ticket has one hidden intent (refund, cancel, shipping, login,
+double charge, praise), phrased combinatorially with negated decoys ("I'm not asking for a refund").
+Train and gate inboxes have 1,500 tickets (about 50k tokens); the long split has 12,000. Same loop, same
+engineer, same starting genome as run `main`. Count questions get partial credit (1 - 10 x relative error).
+5 generations, 3 candidates each.
+
+## Headline
+
+| harness | train (12) | gate (8, held out) | long (8, 8x longer) | tokens per task, train | tokens per task, long |
+| --- | --- | --- | --- | --- | --- |
+| generation 0 (plain inline) | 0.95 | 0.97 | 0.30 | 117,740 | 709,538 |
+| champion `68547efa` (generation 3) | 1.00 | 1.00 | 0.87 | 65,714 | 266,782 |
+
+## A different species
+
+- **Generations 1-2:** every proposal moved the inbox into the REPL and wrote a skill that has the
+  sub-model classify tickets (`classify_records`, `find_matching`). They cut tokens up to 44% but lost
+  a top-k or count question, and the gate rejected all six (gen-0's 0.95 left no room for losses).
+- **Generation 3:** `tag_records` parses every ticket, removes duplicate texts, has the sub-model tag each
+  unique text with the intents it really expresses (negated mentions excluded), and counts in code.
+  **Accepted:** train 1.00, gate 1.00, 44% fewer tokens.
+- **Generations 4-5:** savings under 15%, rejected.
+
+On logs the loop evolved toward *computing* (parse and count in Python, no sub-calls); on tickets it
+evolved toward *delegating reading* to sub-model calls. The two species scale differently: on 8x longer
+inputs the logs champion's cost barely moved (4,261 to 5,079 tokens per task) while the tickets champion's
+grew with the data (65,714 to 266,782) until it hit its 150-sub-call budget, which cost it one pairs
+question (0.00) while every count stayed exact.
+
+### Champion path (tickets)
+
+| gen | genome | train | gate | long | tokens/task (train) | patch |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | ac82e342 | 0.95 | 0.97 | 0.30 | 117,740 | (none) |
+| 3 | 68547efa | 1.00 | 1.00 | 0.87 | 65,714 | set repl=true; set context_mode="repl"; set limits.max_subcalls=150; set stop_at_output=true; put_skill tag_records; add |
+
+### Every candidate
+
+| gen | genome | focus | status | train | tokens/task | reason |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | f645dbdf | accuracy | rejected_no_gain | 0.58 | 151,026 | no train gain: acc 0.95 -> 0.58, tokens/task 117,740 -> 151,026 |
+| 1 | e63ec44e | cost | rejected_no_gain | 0.54 | 79,815 | no train gain: acc 0.95 -> 0.54, tokens/task 117,740 -> 79,815 |
+| 1 | 4cdd06fe | free | rejected_no_gain | 0.92 | 106,765 | no train gain: acc 0.95 -> 0.92, tokens/task 117,740 -> 106,765 |
+| 2 | 539b2e1e | accuracy | rejected_no_gain | 0.80 | 66,086 | no train gain: acc 0.95 -> 0.80, tokens/task 117,740 -> 66,086 |
+| 2 | 5ef1eba8 | cost | rejected_no_gain | 0.78 | 87,099 | no train gain: acc 0.95 -> 0.78, tokens/task 117,740 -> 87,099 |
+| 2 | 53c3e54f | free | rejected_no_gain | 0.92 | 76,193 | no train gain: acc 0.95 -> 0.92, tokens/task 117,740 -> 76,193 |
+| 3 | 68547efa | accuracy | accepted | 1.00 | 65,714 | train acc held at 1.00; tokens/task 117,740 -> 65,714; gate acc 0.97 -> 1.00 |
+| 3 | fc848954 | cost | rejected_no_gain | 0.86 | 109,167 | no train gain: acc 0.95 -> 0.86, tokens/task 117,740 -> 109,167 |
+| 3 | 1b195da0 | free | rejected_no_gain | 1.00 | 103,282 | no train gain: acc 0.95 -> 1.00, tokens/task 117,740 -> 103,282 |
+| 4 | c77c7ef0 | accuracy | rejected_no_gain | 1.00 | 66,507 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 66,507 |
+| 4 | dfda46b0 | cost | rejected_no_gain | 1.00 | 62,578 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 62,578 |
+| 4 | f6b6b2c3 | free | rejected_no_gain | 1.00 | 66,255 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 66,255 |
+| 5 | b1b0c9d6 | accuracy | rejected_no_gain | 1.00 | 68,573 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 68,573 |
+| 5 | 5fa5b436 | cost | rejected_no_gain | 1.00 | 62,526 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 62,526 |
+| 5 | 4a9e38a1 | free | rejected_no_gain | 1.00 | 63,773 | no train gain: acc 1.00 -> 1.00, tokens/task 65,714 -> 63,773 |
