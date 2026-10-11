@@ -56,6 +56,7 @@ class Task:
     question: str
     context: str
     answer: Any
+    workload: str = "logs"
 
 
 def _at(rng: random.Random, lo: float = 0.0, hi: float = SPAN_S) -> datetime:
@@ -130,7 +131,10 @@ def _ask_pairs(rng, recs, users, idx):
 ASK = {"needle": _ask_needle, "topk": _ask_topk, "distinct": _ask_distinct, "pairs": _ask_pairs}
 
 
-def make_task(split: str, idx: int, n_lines: int | None = None) -> Task:
+def make_task(split: str, idx: int, n_lines: int | None = None, workload: str = "logs") -> Task:
+    if workload == "tickets":
+        from lamarck import tickets
+        return tickets.make_task(split, idx, n_lines)
     n_lines = n_lines or config.SPLITS[split][1]
     rng = random.Random(f"lamarck:{split}:{idx}:{n_lines}")
     kind = KINDS[idx % len(KINDS)]
@@ -143,6 +147,9 @@ def make_task(split: str, idx: int, n_lines: int | None = None) -> Task:
 
 
 def score(task: Task, answer: str) -> float:
+    if task.workload == "tickets":
+        from lamarck import tickets
+        return tickets.score(task, answer)
     a = (answer or "").lower()
     if task.kind == "needle":
         return float(set(TRACE_RE.findall(a)) == {task.answer})

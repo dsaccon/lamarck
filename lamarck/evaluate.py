@@ -22,11 +22,12 @@ def summarize(results: list[dict]) -> dict:
 
 
 def evaluate_many(pairs: list[tuple[str, str]], run: str | None = None) -> dict[tuple[str, str], dict]:
+    workload = store.workload(run) if run else "logs"
     jobs, keys = [], []
     for gid, split in pairs:
         genome = store.get_genome(gid)["genome"]
         for i in range(config.SPLITS[split][0]):
-            jobs.append({"genome": genome, "split": split, "idx": i})
+            jobs.append({"genome": genome, "split": split, "idx": i, "workload": workload})
             keys.append((gid, split, i))
     done = {"n": 0}
 
@@ -39,7 +40,7 @@ def evaluate_many(pairs: list[tuple[str, str]], run: str | None = None) -> dict[
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for (gid, split, i), o in zip(keys, outcomes):
         grouped[(gid, split)].append(o["result"] if o["ok"]
-                                     else error_result(make_task(split, i), o["error"]).model_dump(mode="json"))
+                                     else error_result(make_task(split, i, workload=workload), o["error"]).model_dump(mode="json"))
     summaries = {}
     for (gid, split), results in grouped.items():
         store.insert_runs(gid, split, results)

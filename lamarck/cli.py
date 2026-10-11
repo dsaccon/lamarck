@@ -80,6 +80,10 @@ def generation(run: str, g: int, k: int) -> None:
 
 
 def cmd_evolve(a: argparse.Namespace) -> None:
+    if a.workload:
+        if store.lineage(a.run) and store.workload(a.run) != a.workload:
+            raise SystemExit(f"run {a.run!r} already uses workload {store.workload(a.run)!r}; pick another run name")
+        store.set_workload(a.run, a.workload)
     ensure_root(a.run)
     lineage = store.lineage(a.run)
     busy = [x["_id"] for x in lineage if x["status"] == "candidate"]
@@ -135,6 +139,7 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--gens", type=int, default=1)
             p.add_argument("--candidates", type=int, default=3, choices=[1, 2, 3])
             p.add_argument("--force", action="store_true", help="evolve even if candidates look in flight")
+            p.add_argument("--workload", choices=["logs", "tickets"], help="task family for a new run (default logs)")
         if name == "rollback":
             p.add_argument("--to", required=True)
     a = ap.parse_args(argv)

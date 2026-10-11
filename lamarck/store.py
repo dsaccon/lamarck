@@ -64,6 +64,15 @@ def set_champion(run: str, gid: str) -> None:
     db().meta.update_one({"_id": f"champion:{run}"}, {"$set": {"genome_id": gid}}, upsert=True)
 
 
+def workload(run: str) -> str:
+    doc = db().meta.find_one({"_id": f"workload:{run}"})
+    return doc["workload"] if doc else "logs"
+
+
+def set_workload(run: str, workload: str) -> None:
+    db().meta.update_one({"_id": f"workload:{run}"}, {"$set": {"workload": workload}}, upsert=True)
+
+
 def insert_runs(gid: str, split: str, results: list[dict]) -> None:
     now = datetime.now(timezone.utc)
     db().runs.insert_many([{**r, "genome_id": gid, "split": split, "created_at": now} for r in results])

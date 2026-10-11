@@ -16,5 +16,5 @@ def run_job(job: dict) -> dict:
         os.environ.pop(key, None)
     os.chdir(tempfile.mkdtemp(prefix="lamarck-task-"))  # and not next to .env
     genome = Genome.model_validate(job["genome"])
-    task = make_task(job["split"], job["idx"], job.get("n_lines"))
+    task = make_task(job["split"], job["idx"], job.get("n_lines"), job.get("workload", "logs"))
     return run_task(genome, task, client).model_dump(mode="json")

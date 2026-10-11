@@ -209,7 +209,7 @@ def run_task(genome: Genome, task: Task, model: Any, step_timeout: float = confi
         return text
 
     def llm_query_batch(prompts: list[str]) -> list[str]:
-        with ThreadPoolExecutor(max_workers=8) as ex:
+        with ThreadPoolExecutor(max_workers=16) as ex:
             return list(ex.map(llm_query, list(prompts)))
 
     ns: dict = {"__name__": "__repl__"}
