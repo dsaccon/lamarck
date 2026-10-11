@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lamarck</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
+          --accepted:#3fb950; --nogain:#6e7681; --overfit:#f85149; --invalid:#a371f7; --pending:#58a6ff; --champ:#d29922; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+  .stat { color: var(--muted); } .stat b { color: var(--ink); font-size: 18px; margin-left: 4px; }
+  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); grid-template-rows: minmax(0, 1fr) 210px;
+         gap: 12px; padding: 12px; height: calc(100vh - 58px); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow: auto; min-height: 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 8px; }
+  .legend { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 0 12px; vertical-align: -1px; }
+  svg text { fill: var(--ink); font-size: 11px; }
+  .node { cursor: pointer; }
+  pre, .mono { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; margin: 0; }
+  .op { background: #0b0f14; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; color: #0d1117; font-weight: 600; }
+  #feed pre div:last-child { color: var(--pending); }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: auto auto 220px; height: auto; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lamarck</h1>
+  <span class="stat">run <b id="run"></b></span>
+  <span class="stat">champion <b id="champ">–</b></span>
+  <span class="stat">train <b id="train">–</b></span>
+  <span class="stat">gate <b id="gate">–</b></span>
+  <span class="stat">tokens/task <b id="tok">–</b></span>
+  <span class="stat">genomes <b id="count">–</b></span>
+</header>
+<main>
+  <section>
+    <h2>Lineage</h2>
+    <div class="legend"><i style="background:var(--accepted)"></i>accepted<i style="background:var(--nogain)"></i>no gain<i style="background:var(--overfit)"></i>overfit<i style="background:var(--invalid)"></i>invalid<i style="background:var(--pending)"></i>evaluating<i style="background:none;border:2px solid var(--champ)"></i>champion</div>
+    <svg id="tree"></svg>
+    <h2 style="margin-top:14px">Champion over generations (train accuracy, tokens per task)</h2>
+    <svg id="curve" height="140" width="100%"></svg>
+  </section>
+  <section id="detail"><h2>Genome</h2><p class="stat">Click a node.</p></section>
+  <section id="feed" style="grid-column: 1 / -1"><h2>Live feed</h2><pre id="log"></pre></section>
+</main>
+<script>
+const RUN = new URLSearchParams(location.search).get("run") || "main";
+const COLORS = {accepted: "var(--accepted)", rejected_no_gain: "var(--nogain)", not_selected: "var(--nogain)",
+                rejected_overfit: "var(--overfit)", invalid: "var(--invalid)", candidate: "var(--pending)"};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]));
+const pct = (x) => (x === undefined || x === null) ? "–" : Math.round(x * 100) + "%";
+let selected = null, lastTs = 0, data = null;
+$("run").textContent = RUN;
+
+function opText(o) {
+  if (o.op === "set") return `set ${o.path} = ${o.value_json}`;
+  if (o.op === "add_note") return `add_note "${o.text}"`;
+  if (o.op === "remove_note") return `remove_note #${o.index}`;
+  if (o.op === "put_skill" || o.op === "put_validator") return `${o.op} ${o.name}\n${o.source}`;
+  return `${o.op} ${o.name}`;
+}
+
+function drawTree(genomes, champion) {
+  const byGen = {};
+  genomes.forEach((g) => (byGen[g.generation] ??= []).push(g));
+  const pos = {};
+  const gens = Object.keys(byGen).map(Number).sort((a, b) => a - b);
+  let maxRows = 1;
+  gens.forEach((gen) => { byGen[gen].forEach((g, i) => { pos[g._id] = [50 + gen * 110, 34 + i * 54]; }); maxRows = Math.max(maxRows, byGen[gen].length); });
+  const w = 100 + (gens.at(-1) ?? 0) * 110, h = 40 + maxRows * 54;
+  let s = "";
+  genomes.forEach((g) => { if (g.parent_id && pos[g.parent_id]) { const [x1, y1] = pos[g.parent_id], [x2, y2] = pos[g._id];
+    s += `<path d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}" stroke="#30363d" fill="none" stroke-width="1.5"/>`; } });
+  genomes.forEach((g) => { const [x, y] = pos[g._id]; const acc = g.scores?.train?.acc;
+    const ring = g._id === champion ? `<circle cx="${x}" cy="${y}" r="17" fill="none" stroke="var(--champ)" stroke-width="3"/>` : "";
+    const sel = g._id === selected ? `<circle cx="${x}" cy="${y}" r="21" fill="none" stroke="#e6edf3" stroke-dasharray="3 3"/>` : "";
+    s += `<g class="node" onclick="select('${g._id}')">${sel}${ring}<circle cx="${x}" cy="${y}" r="12" fill="${COLORS[g.status] || "var(--nogain)"}"/>
+          <text x="${x}" y="${y + 28}" text-anchor="middle">${pct(acc)}</text><title>${g._id} ${g.status}</title></g>`; });
+  gens.forEach((gen) => { s += `<text x="${50 + gen * 110}" y="14" text-anchor="middle" style="fill:var(--muted)">gen ${gen}</text>`; });
+  const svg = $("tree"); svg.setAttribute("width", w); svg.setAttribute("height", h); svg.innerHTML = s;
+}
+
+function drawCurve(genomes, champion) {
+  const byId = Object.fromEntries(genomes.map((g) => [g._id, g]));
+  const path = []; let cur = byId[champion];
+  while (cur) { path.unshift(cur); cur = byId[cur.parent_id]; }
+  const pts = path.filter((g) => g.scores?.train);
+  const svg = $("curve"); const W = svg.clientWidth || 600, H = 140, P = 28;
+  if (!pts.length) { svg.innerHTML = ""; return; }
+  const maxGen = Math.max(1, ...pts.map((g) => g.generation)), maxTok = Math.max(...pts.map((g) => g.scores.train.tokens));
+  const X = (gen) => P + (W - 2 * P) * gen / maxGen, Y = (v) => H - P - (H - 2 * P) * v;
+  const line = (f, color) => `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts.map((g) => `${X(g.generation)},${Y(f(g))}`).join(" ")}"/>` +
+    pts.map((g) => `<circle cx="${X(g.generation)}" cy="${Y(f(g))}" r="3.5" fill="${color}"/>`).join("");
+  svg.innerHTML = `<line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" stroke="#30363d"/>` +
+    line((g) => g.scores.train.acc, "var(--accepted)") + line((g) => g.scores.train.tokens / maxTok, "var(--pending)") +
+    `<text x="${P}" y="14" style="fill:var(--accepted)">accuracy</text><text x="${P + 80}" y="14" style="fill:var(--pending)">tokens/task (relative)</text>` +
+    pts.map((g) => `<text x="${X(g.generation)}" y="${H - 8}" text-anchor="middle" style="fill:var(--muted)">${g.generation}</text>`).join("");
+}
+
+async function select(gid) {
+  selected = gid;
+  const {genome: g, parent} = await (await fetch(`/api/genome/${gid}`)).json();
+  const sc = (s) => g.scores?.[s] ? `${pct(g.scores[s].acc)} · ${g.scores[s].tokens.toLocaleString()} tok/task · $${g.scores[s].cost}` : "–";
+  $("detail").innerHTML = `<h2>Genome ${esc(g._id)} · generation ${g.generation}${parent ? " · parent " + esc(parent._id) : ""}</h2>
+    <p><span class="badge" style="background:${COLORS[g.status] || "var(--nogain)"}">${esc(g.status)}</span> <span class="stat">${esc(g.focus)}</span></p>
+    <p class="stat">${esc(g.reason)}</p>
+    <p><b>train</b> ${sc("train")}<br><b>gate</b> ${sc("gate")}<br><b>long</b> ${sc("long")}</p>
+    ${g.diagnosis ? `<h2>Diagnosis</h2><p>${esc(g.diagnosis)}</p>` : ""}
+    ${g.hypothesis ? `<h2>Hypothesis</h2><p>${esc(g.hypothesis)}</p>` : ""}
+    <h2>Patch</h2>${(g.ops || []).map((o) => `<div class="op mono">${esc(opText(o))}</div>`).join("") || '<p class="stat">(root)</p>'}
+    <h2>Genome</h2><pre>${esc(JSON.stringify(g.genome, null, 2))}</pre>`;
+  if (data) drawTree(data.genomes, data.champion);
+}
+
+async function refresh() {
+  data = await (await fetch(`/api/run/${RUN}`)).json();
+  const champ = data.genomes.find((g) => g._id === data.champion);
+  $("champ").textContent = data.champion || "–";
+  $("train").textContent = pct(champ?.scores?.train?.acc);
+  $("gate").textContent = pct(champ?.scores?.gate?.acc);
+  $("tok").textContent = champ?.scores?.train?.tokens?.toLocaleString() ?? "–";
+  $("count").textContent = data.genomes.length;
+  drawTree(data.genomes, data.champion);
+  drawCurve(data.genomes, data.champion);
+}
+
+async function pollFeed() {
+  const rows = await (await fetch(`/api/run/${RUN}/feed?after=${lastTs}`)).json();
+  if (rows.length) {
+    lastTs = rows.at(-1).ts;
+    const log = $("log");
+    rows.forEach((r) => { const d = document.createElement("div");
+      d.textContent = new Date(r.ts * 1000).toLocaleTimeString() + "  " + r.msg; log.appendChild(d); });
+    $("feed").scrollTop = $("feed").scrollHeight;
+  }
+}
+
+refresh(); pollFeed();
+setInterval(refresh, 2000); setInterval(pollFeed, 1000);
+</script>
+</body>
+</html>
