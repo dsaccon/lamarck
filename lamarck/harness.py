@@ -44,6 +44,7 @@ You may also finish with FINAL_VAR(name) to answer with the value of a REPL vari
 Budget: {max_steps} replies and {max_subcalls} sub-model calls."""
 
 SUB_SYSTEM = "Answer the request precisely and concisely."
+OUTPUT_STOPS = ["```output"]  # used when the genome sets stop_at_output
 LIMIT_MESSAGE = "Step limit reached. Reply now with only 'FINAL: <best answer>'."
 MAX_VALIDATOR_REJECTIONS = 2
 # -----------------------------------------------------------------------------------------------
@@ -232,7 +233,8 @@ def run_task(genome: Genome, task: Task, model: Any, step_timeout: float = confi
     def ask(turns: list[Turn]) -> tuple[str, Any]:
         nonlocal steps
         steps += 1
-        text, raw, u = model.generate(genome.root_model, system, turns, genome.thinking_level)
+        text, raw, u = model.generate(genome.root_model, system, turns, genome.thinking_level,
+                                      stop=OUTPUT_STOPS if genome.stop_at_output else None)
         usage.add(genome.root_model, u)
         trace.append({"step": steps, "role": "model", "text": clip(text, 3000)})
         return text, raw

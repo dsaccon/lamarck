@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from lamarck import config
 
 OP_NAMES = ("set", "add_note", "remove_note", "put_skill", "del_skill", "put_validator", "del_validator")
-SETTABLE = {"root_model", "sub_model", "thinking_level", "context_mode", "repl", "max_obs_chars",
+SETTABLE = {"root_model", "sub_model", "thinking_level", "context_mode", "repl", "max_obs_chars", "stop_at_output",
             "limits.max_steps", "limits.max_subcalls"}
 MAX_NOTES, MAX_NOTE_CHARS, MAX_SKILLS, MAX_VALIDATORS, MAX_SOURCE_CHARS = 12, 500, 8, 4, 6000
 
@@ -46,6 +46,7 @@ class Genome(BaseModel):
     context_mode: Literal["inline", "repl", "both"] = "inline"
     repl: bool = False
     max_obs_chars: int = Field(4000, ge=200, le=50000)
+    stop_at_output: bool = False
     system_notes: list[str] = Field(default_factory=list)
     skills: dict[str, str] = Field(default_factory=dict)
     validators: dict[str, str] = Field(default_factory=dict)

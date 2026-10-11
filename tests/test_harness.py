@@ -11,12 +11,13 @@ def task(kind="distinct", answer=10):
 
 class FakeModel:
     def __init__(self, replies, sub_reply="SUB"):
-        self.replies, self.sub_reply, self.systems = list(replies), sub_reply, []
+        self.replies, self.sub_reply, self.systems, self.stops = list(replies), sub_reply, [], []
 
-    def generate(self, model, system, history, thinking_level):
+    def generate(self, model, system, history, thinking_level, stop=None):
         if system == SUB_SYSTEM:
             return self.sub_reply, None, {"in": 10, "out": 2}
         self.systems.append(system)
+        self.stops.append(stop)
         return self.replies.pop(0), None, {"in": 100, "out": 20}
 
 
@@ -94,3 +95,12 @@ def test_repl_shows_trailing_expression_and_errors():
 def test_clip():
     assert clip("abc", 10) == "abc"
     assert clip("a" * 100, 10).startswith("a" * 10) and "cut 90 chars" in clip("a" * 100, 10)
+
+
+def test_stop_at_output_gene_sends_a_stop_sequence_to_the_root_model():
+    model = FakeModel(["FINAL: 10"])
+    run_task(Genome(repl=True, context_mode="repl", stop_at_output=True), task(), model)
+    assert model.stops == [["```output"]]
+    model = FakeModel(["FINAL: 10"])
+    run_task(REPL, task(), model)
+    assert model.stops == [None]

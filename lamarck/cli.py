@@ -30,8 +30,11 @@ def ensure_scores(run: str, gid: str, splits: tuple[str, ...] = ("train", "gate"
 
 def generation(run: str, g: int, k: int) -> None:
     champ = ensure_scores(run, ensure_root(run))
-    failures = store.failing_runs(champ["_id"], "train", limit=6)
     history = store.lineage(run)[-12:]
+    failures = store.failing_runs(champ["_id"], "train", limit=4)
+    for prev in [x["_id"] for x in history if x["generation"] == g - 1 and x["status"] not in ("invalid", "accepted")]:
+        failures += store.failing_runs(prev, "train", limit=2)
+    failures = failures[:8]
     foci = list(engineer.FOCI)[:k]
     store.log(run, f"gen {g}: engineer reading {len(failures)} failing runs of champion {champ['_id']} "
                    f"(train acc {champ['scores']['train']['acc']:.2f}); foci: {', '.join(foci)}")

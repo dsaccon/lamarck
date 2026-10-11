@@ -68,3 +68,7 @@ def test_apply_does_not_mutate_input():
     before = GEN0.model_dump()
     apply(GEN0, [op(op="add_note", text="x")])
     assert GEN0.model_dump() == before
+
+
+def test_stop_at_output_is_settable():
+    assert apply(GEN0, [op(op="set", path="stop_at_output", value_json="true")]).stop_at_output is True

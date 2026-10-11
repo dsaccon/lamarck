@@ -62,12 +62,14 @@ def build_prompt(champ: dict, failures: list[dict], history: list[dict], focus: 
              f"{json.dumps(champ['genome'], indent=2)}\n```",
              f"## Champion on train\naccuracy {train['acc']:.2f} over {train['n']} tasks; by kind {train['by_kind']}; "
              f"{train['tokens']} tokens per task; ${train['cost']:.3f} total; {train['errors']} errors",
-             f"## Failing train runs ({len(failures)} shown)"]
+             f"## Failing train runs ({len(failures)} shown; candidates are last generation's, see the lineage)"]
     for r in failures:
         steps = r.get("trace", [])
         shown = steps[:1] + (steps[-4:] if len(steps) > 5 else steps[1:])
         trace = "\n".join(f"[{s['role']} {s['step']}] {_clip(s['text'], 1200)}" for s in shown)
-        parts.append(f"### {r['task_id']} ({r['kind']}), score {r['score']}\nQuestion: {r['question']}\n"
+        gid = r.get("genome_id")
+        origin = "" if gid is None else (f", from champion {gid}" if gid == champ["_id"] else f", from candidate {gid}")
+        parts.append(f"### {r['task_id']} ({r['kind']}{origin}), score {r['score']}\nQuestion: {r['question']}\n"
                      f"Expected: {r['expected']}\nGot: {r['answer'][:300]!r}\nError: {r.get('error')}\n"
                      f"Steps: {r['steps']}, sub-calls: {r['subcalls']}, tokens: {r['tokens_in'] + r['tokens_out']}\n"
                      f"Trace (first and last steps):\n{trace or '(no steps recorded)'}")

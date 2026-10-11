@@ -13,6 +13,7 @@ Genes you can change:
 - repl: if true, the worker has a persistent Python REPL (standard library only) with llm_query(prompt) -> str and llm_query_batch(prompts) -> list[str], which call sub_model; a sub-model sees only the prompt it is given.
 - context_mode: "inline" puts the data in the first message; "repl" puts it only in the REPL variable `context` and shows the worker a short preview (needs repl=true); "both" does both.
 - max_obs_chars (200 to 50000): how much REPL output re-enters the worker's context.
+- stop_at_output: if true, the worker's generation stops when it starts writing a ```output block, so it cannot imagine REPL output; the real output always arrives in the next message.
 - limits.max_steps (1 to 30) and limits.max_subcalls (0 to 200).
 - system_notes: rules appended to the worker's system prompt (at most 12, each at most 500 characters).
 - skills: Python functions preloaded into the REPL (at most 8; each source at most 6000 characters; it must define a top-level function with the skill's name, with a docstring whose first line is shown to the worker; it may call llm_query and llm_query_batch).

@@ -45,3 +45,9 @@ def test_propose_gives_up_after_two_invalid_answers():
     bad = {"diagnosis": "d", "hypothesis": "h", "ops": [{"op": "set", "path": "base_prompt", "value_json": "\"x\""}]}
     out = engineer.propose(CHAMP, [FAILURE], HISTORY, "free", call=lambda p, s, sc: bad)
     assert not out["ok"] and "not settable" in out["error"]
+
+
+def test_failures_are_labelled_with_their_genome():
+    sibling = {**FAILURE, "genome_id": "c1", "task_id": "train-5-800"}
+    p = engineer.build_prompt(CHAMP, [{**FAILURE, "genome_id": "g0"}, sibling], HISTORY, "accuracy")
+    assert "from champion g0" in p and "from candidate c1" in p

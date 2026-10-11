@@ -49,12 +49,13 @@ class GeminiClient:
         self._types = types
         self._client = genai.Client(api_key=api_key)
 
-    def generate(self, model: str, system: str, history: list[Turn], thinking_level: str) -> tuple[str, Any, dict]:
+    def generate(self, model: str, system: str, history: list[Turn], thinking_level: str,
+                 stop: list[str] | None = None) -> tuple[str, Any, dict]:
         types = self._types
         contents = [t.raw if t.role == "model" and t.raw is not None
                     else types.Content(role=t.role, parts=[types.Part(text=t.text)]) for t in history]
         cfg = types.GenerateContentConfig(
-            system_instruction=system, max_output_tokens=16384,
+            system_instruction=system, max_output_tokens=16384, stop_sequences=stop,
             thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
         resp = with_retries(lambda: self._client.models.generate_content(model=model, contents=contents, config=cfg))
