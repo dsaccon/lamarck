@@ -19,7 +19,7 @@ ENGINEER_EFFORT = "high"
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 
 # split -> (number of tasks, log lines per task). Line counts are fixed by the spike (Task 6).
-SPLITS: dict[str, tuple[int, int]] = {"train": (12, 800), "gate": (8, 800), "long": (8, 8000)}
+SPLITS: dict[str, tuple[int, int]] = {"train": (12, 2000), "gate": (8, 2000), "long": (8, 16000)}
 
 # Protected hard caps.
 TASK_TIMEOUT_S = 420
