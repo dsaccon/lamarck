@@ -9,7 +9,7 @@ Lamarck is an agent harness that rewrites its own architecture from its own fail
 harness is fully determined by a typed **genome** (context policy, tool access, recursion budgets, rules,
 skills, validators, models). An **engineer** agent reads the failing traces of the current champion and
 proposes typed patches; an **eval gate** accepts a patch only if it beats its parent on the training tasks
-and does not regress on held-out tasks. Every version, run and trace step lives in MongoDB Atlas as a
+and does not regress on held-out tasks. Every version, run and trace lives in MongoDB Atlas as a
 lineage tree with rollback.
 
 The name: variation is *Lamarckian* (directed changes acquired from the harness's own experience are
@@ -61,12 +61,12 @@ All code is new, in a fresh public repo. Python 3.12, dependencies in a project 
 | `lamarck/genome.py` | `Genome` pydantic schema, `GEN0`, typed patch ops, validation | `apply(genome, patch) -> Genome` |
 | `lamarck/llm.py` | Provider calls | `gemini_chat(...) -> (text, usage)`, `claude_json(prompt, system, schema) -> dict` |
 | `lamarck/harness.py` | Runs one task under one genome | `run_task(genome, task) -> RunResult` |
-| `lamarck/store.py` | MongoDB access | collections `genomes`, `runs`, `events`, `meta` (champion pointer) |
-| `lamarck/evaluate.py` | Runs a genome over a split in parallel, records runs and events | `evaluate(genome_id, split) -> EvalSummary` |
+| `lamarck/store.py` | MongoDB access | collections `genomes`, `runs` (each with its embedded trace), `feed` (live log), `meta` (champion pointer) |
+| `lamarck/evaluate.py` | Runs genomes over splits in isolated worker processes, records runs | `evaluate_many([(genome_id, split)]) -> {(genome_id, split): summary}` |
 | `lamarck/engineer.py` | Builds the engineer prompt, calls Opus, returns a validated patch | `propose(champion, summary, failures, history, focus) -> Proposal` |
 | `lamarck/gate.py` | Pure acceptance rule | `decide(parent, candidate) -> Verdict` |
-| `lamarck/evolve.py` | The generation loop and CLI; rollback command | `python -m lamarck.evolve --gens N --candidates K` |
-| `lamarck/server.py` + `static/index.html` | Live view: lineage tree, genome diff and rationale per node, accuracy/cost curve, live feed via SSE from a change stream | FastAPI |
+| `lamarck/cli.py` | The generation loop and CLI: `evolve`, `long`, `status`, `rollback`, `ping` | `python -m lamarck.cli evolve --gens N --candidates K` |
+| `lamarck/server.py` + `static/index.html` | Live view: lineage tree, genome diff and rationale per node, accuracy/cost curve, live feed (polls MongoDB; change stream optional) | FastAPI |
 | `scripts/spike.py` | Gen-0 vs a hand-written RLM genome on a few tasks, to size the workload | CLI |
 
 ### 4.1 Genome
@@ -125,14 +125,14 @@ the scorer, task data, hard caps (per-task wall clock, per-task token ceiling, `
      train gain is ≥ 2/12, otherwise `rejected_no_gain`.
 4. Record every candidate with status (`accepted`, `rejected_no_gain`, `rejected_overfit`, `invalid`)
    and reason. An accepted candidate becomes champion. Rollback moves the champion pointer to any
-   ancestor (`python -m lamarck.champion set <id>`).
+   ancestor (`python -m lamarck.cli rollback --to <id>`).
 5. After the run, evaluate gen-0 and the champion on long.
 
 ### 4.5 Data flow
 
 `evolve` → `engineer` (`claude -p`, Opus) → patch → `genome.apply` → `genomes` (status `candidate`) →
-`evaluate` (Gemini workers) → `runs` + `events` → `gate` → status update + `meta.champion` →
-change stream → live view.
+`evaluate` (Gemini workers) → `runs` → `gate` → status update + `meta.champion`; every step also
+writes a `feed` line → live view (polling).
 
 ## 5. Error handling
 
